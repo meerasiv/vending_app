@@ -15,7 +15,7 @@ class _AddMachinePageState extends State<AddMachinePage> {
     'Thiruvananthapuram',
     'Kollam',
     'Pathanamthitta',
-    'Alappuzha'
+    'Alappuzha',
     'Kottayam',
     'Idukki',
     'Ernakulam',
@@ -27,6 +27,7 @@ class _AddMachinePageState extends State<AddMachinePage> {
     'Kannur',
     'Kasaragod'
   ];
+
   String selectedLocation = 'Thiruvananthapuram';
 
   final List<String> statuses = ['Active', 'Inactive'];
@@ -35,40 +36,51 @@ class _AddMachinePageState extends State<AddMachinePage> {
   bool isLoading = false;
 
   Future<void> addMachine() async {
-    try {
-      setState(() => isLoading = true);
+    setState(() => isLoading = true);
 
+    try {
+      // 🔹 STEP 1: Insert machine
       final response = await supabase
           .from('vending_machine')
           .insert({
             'location': selectedLocation,
-            'status': selectedStatus.toLowerCase(),
+            'status': selectedStatus,
           })
           .select()
           .single();
 
       final machineId = response['machine_id'];
 
+      // 🔹 STEP 2: If inactive → create technician request
       if (selectedStatus == 'Inactive') {
-        await supabase.from('technician_requests').insert({
-          'machine_id': machineId,
-          'issue': 'Machine created as inactive',
-          'status': 'Pending',
-        });
+        try {
+          await supabase.from('technician_requests').insert({
+            'machine_id': machineId,
+            'issue': 'Machine created as inactive',
+            'status': 'pending', // keep lowercase
+          });
+        } catch (e) {
+          // ⚠️ Do NOT crash app if this fails
+          print("Technician request error: $e");
+        }
       }
 
+      // ✅ SUCCESS MESSAGE
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Machine Added Successfully ✅")),
       );
 
+      // 🔄 Reset UI
       setState(() {
         selectedLocation = locations[0];
         selectedStatus = statuses[0];
       });
 
-      await Future.delayed(const Duration(milliseconds: 700));
+      await Future.delayed(const Duration(milliseconds: 600));
+
       if (mounted) Navigator.pop(context);
     } catch (e) {
+      print("FULL ERROR: $e");
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Error: $e")),
       );
@@ -84,27 +96,27 @@ class _AddMachinePageState extends State<AddMachinePage> {
       appBar: AppBar(
         title: const Text("Add New Machine"),
         centerTitle: true,
-        elevation: 0,
         backgroundColor: Colors.blue,
       ),
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            /// 🎨 Card container for dropdowns
             Card(
               elevation: 4,
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(20)),
               child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+                padding:
+                    const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
                 child: Column(
                   children: [
-                    /// 📍 LOCATION
-                    DropdownButtonFormField(
+                    // 📍 LOCATION
+                    DropdownButtonFormField<String>(
                       value: selectedLocation,
                       decoration: InputDecoration(
-                        prefixIcon: const Icon(Icons.location_on, color: Colors.blue),
+                        prefixIcon: const Icon(Icons.location_on,
+                            color: Colors.blue),
                         labelText: "Select Location",
                         border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12)),
@@ -121,13 +133,15 @@ class _AddMachinePageState extends State<AddMachinePage> {
                         });
                       },
                     ),
+
                     const SizedBox(height: 20),
 
-                    /// ⚙ STATUS
-                    DropdownButtonFormField(
+                    // ⚙ STATUS
+                    DropdownButtonFormField<String>(
                       value: selectedStatus,
                       decoration: InputDecoration(
-                        prefixIcon: const Icon(Icons.toggle_on, color: Colors.blue),
+                        prefixIcon:
+                            const Icon(Icons.toggle_on, color: Colors.blue),
                         labelText: "Select Status",
                         border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12)),
@@ -151,7 +165,7 @@ class _AddMachinePageState extends State<AddMachinePage> {
 
             const SizedBox(height: 30),
 
-            /// ➕ ADD MACHINE BUTTON
+            // ➕ BUTTON
             SizedBox(
               width: double.infinity,
               height: 55,
@@ -161,13 +175,13 @@ class _AddMachinePageState extends State<AddMachinePage> {
                   backgroundColor: Colors.blue,
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(15)),
-                  elevation: 4,
                 ),
                 icon: isLoading
                     ? const SizedBox(
                         width: 20,
                         height: 20,
-                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                        child: CircularProgressIndicator(
+                            color: Colors.white, strokeWidth: 2),
                       )
                     : const Icon(Icons.add),
                 label: Text(
