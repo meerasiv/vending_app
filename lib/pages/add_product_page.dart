@@ -25,7 +25,7 @@ class _AddProductPageState extends State<AddProductPage> {
 
   bool isLoading = false;
 
-  // ================= ADD PRODUCT =================
+  // ================= ADD / UPDATE PRODUCT =================
   Future<void> addProduct() async {
     final name = nameController.text.trim();
     final price = double.tryParse(priceController.text.trim());
@@ -40,23 +40,46 @@ class _AddProductPageState extends State<AddProductPage> {
     setState(() => isLoading = true);
 
     try {
-      await supabase.from('product').insert({
-        'product_name': name, // ✅ FIXED COLUMN
-        'category': selectedCategory,
-        'price': price,
-      });
+      // 🔍 Check if product already exists
+      final existing = await supabase
+          .from('product')
+          .select()
+          .eq('product_name', name)
+          .maybeSingle();
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Product added successfully")),
-      );
+      if (existing != null) {
+        // 🔄 UPDATE existing product
+        await supabase
+            .from('product')
+            .update({
+              'category': selectedCategory,
+              'price': price,
+            })
+            .eq('product_name', name);
 
-      // Clear fields
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Product updated successfully ✅")),
+        );
+      } else {
+        // ➕ INSERT new product
+        await supabase.from('product').insert({
+          'product_name': name,
+          'category': selectedCategory,
+          'price': price,
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Product added successfully ✅")),
+        );
+      }
+
+      // 🔄 Clear inputs
       nameController.clear();
       priceController.clear();
       setState(() => selectedCategory = null);
 
     } catch (e) {
-      print("Add Product Error: $e"); // 🔍 debug
+      print("FULL ERROR: $e"); // 🔍 debug in terminal
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Error: $e")),
       );
@@ -70,7 +93,7 @@ class _AddProductPageState extends State<AddProductPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Add Product"),
+        title: const Text("Add / Update Product"),
         backgroundColor: Colors.blue,
       ),
       body: Padding(
@@ -78,7 +101,7 @@ class _AddProductPageState extends State<AddProductPage> {
         child: Column(
           children: [
 
-            // Product Name
+            // 🏷 Product Name
             TextField(
               controller: nameController,
               decoration: const InputDecoration(
@@ -89,7 +112,7 @@ class _AddProductPageState extends State<AddProductPage> {
 
             const SizedBox(height: 16),
 
-            // Category Dropdown
+            // 📂 Category Dropdown
             DropdownButtonFormField<String>(
               value: selectedCategory,
               items: categories.map((cat) {
@@ -109,7 +132,7 @@ class _AddProductPageState extends State<AddProductPage> {
 
             const SizedBox(height: 16),
 
-            // Price
+            // 💰 Price
             TextField(
               controller: priceController,
               keyboardType: TextInputType.number,
@@ -121,7 +144,7 @@ class _AddProductPageState extends State<AddProductPage> {
 
             const SizedBox(height: 24),
 
-            // Button
+            // 🚀 Button
             SizedBox(
               width: double.infinity,
               height: 50,
@@ -133,7 +156,7 @@ class _AddProductPageState extends State<AddProductPage> {
                 child: isLoading
                     ? const CircularProgressIndicator(color: Colors.white)
                     : const Text(
-                        "Add Product",
+                        "Save Product",
                         style: TextStyle(color: Colors.white),
                       ),
               ),
