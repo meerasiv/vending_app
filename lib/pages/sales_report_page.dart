@@ -10,17 +10,40 @@ class SalesReportPage extends StatefulWidget {
 
 class _SalesReportPageState extends State<SalesReportPage> {
 
-  List transactions = [];
   final supabase = Supabase.instance.client;
+
+  List transactions = [];
+  Map<int, List> groupedSales = {};
+  double totalSales = 0;
 
   Future<void> loadSales() async {
 
     final data = await supabase
         .from('machine_transaction')
-        .select();
+        .select()
+        .order('machine_id'); // ✅ SORTED
+
+    Map<int, List> tempGroup = {};
+    double tempTotal = 0;
+
+    for (var sale in data) {
+
+      int machineId = sale['machine_id'];
+      double amount = (sale['amount_paid'] ?? 0).toDouble();
+
+      tempTotal += amount;
+
+      if (!tempGroup.containsKey(machineId)) {
+        tempGroup[machineId] = [];
+      }
+
+      tempGroup[machineId]!.add(sale);
+    }
 
     setState(() {
       transactions = data;
+      groupedSales = tempGroup;
+      totalSales = tempTotal;
     });
   }
 
@@ -45,94 +68,101 @@ class _SalesReportPageState extends State<SalesReportPage> {
           : Padding(
               padding: const EdgeInsets.all(12),
 
-              child: ListView.builder(
+              child: Column(
+                children: [
 
-                itemCount: transactions.length,
-
-                itemBuilder: (context, index) {
-
-                  final sale = transactions[index];
-
-                  return Card(
-
+                  /// 🔥 TOTAL SALES CARD
+                  Card(
+                    color: Colors.green.shade50,
                     elevation: 3,
-                    margin: const EdgeInsets.only(bottom: 12),
-
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),
                     ),
-
                     child: Padding(
-
-                      padding: const EdgeInsets.all(14),
+                      padding: const EdgeInsets.all(16),
 
                       child: Row(
-
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
 
-                          /// Icon section
-                          Container(
-
-                            padding: const EdgeInsets.all(10),
-
-                            decoration: BoxDecoration(
-                              color: Colors.blue.shade50,
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-
-                            child: const Icon(
-                              Icons.receipt_long,
-                              color: Colors.blue,
+                          const Text(
+                            "Total Sales",
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
 
-                          const SizedBox(width: 15),
-
-                          /// Sale info
-                          Expanded(
-                            child: Column(
-
-                              crossAxisAlignment: CrossAxisAlignment.start,
-
-                              children: [
-
-                                Text(
-                                  "Machine ${sale['machine_id']}",
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-
-                                const SizedBox(height: 4),
-
-                                Text(
-                                  "Product ID: ${sale['product_id']}",
-                                  style: const TextStyle(
-                                    fontSize: 13,
-                                    color: Colors.grey,
-                                  ),
-                                ),
-
-                              ],
-                            ),
-                          ),
-
-                          /// Price section
                           Text(
-                            "₹${sale['amount_paid']}",
+                            "₹${totalSales.toStringAsFixed(2)}",
                             style: const TextStyle(
-                              fontSize: 16,
+                              fontSize: 18,
                               fontWeight: FontWeight.bold,
                               color: Colors.green,
                             ),
                           ),
-
                         ],
                       ),
                     ),
-                  );
-                },
+                  ),
+
+                  const SizedBox(height: 15),
+
+                  /// 🔥 MACHINE-WISE LIST
+                  Expanded(
+                    child: ListView(
+                      children: groupedSales.entries.map((entry) {
+
+                        int machineId = entry.key;
+                        List sales = entry.value;
+
+                        double machineTotal = sales.fold(
+                          0,
+                          (sum, item) => sum + (item['amount_paid'] ?? 0),
+                        );
+
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+
+                            /// MACHINE HEADER
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              child: Text(
+                                "Machine $machineId  (₹${machineTotal.toStringAsFixed(2)})",
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+
+                            /// TRANSACTIONS
+                            ...sales.map((sale) {
+                              return Card(
+                                elevation: 2,
+                                margin: const EdgeInsets.only(bottom: 10),
+
+                                child: ListTile(
+                                  leading: const Icon(Icons.receipt_long, color: Colors.blue),
+                                  title: Text("Product ID: ${sale['product_id']}"),
+                                  trailing: Text(
+                                    "₹${sale['amount_paid']}",
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.green,
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+
+                          ],
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ],
               ),
             ),
     );
