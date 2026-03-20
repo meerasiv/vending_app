@@ -27,9 +27,8 @@ class _RestockMachinePageState extends State<RestockMachinePage> {
     loadProducts();
   }
 
-  // Load machines
+  /// 🔹 Load machines
   Future<void> loadMachines() async {
-
     final data = await supabase
         .from('vending_machine')
         .select();
@@ -39,9 +38,8 @@ class _RestockMachinePageState extends State<RestockMachinePage> {
     });
   }
 
-  // Load products
+  /// 🔹 Load products
   Future<void> loadProducts() async {
-
     final data = await supabase
         .from('product')
         .select();
@@ -51,7 +49,7 @@ class _RestockMachinePageState extends State<RestockMachinePage> {
     });
   }
 
-  // Insert inventory
+  /// 🔹 Restock logic
   Future<void> restockMachine() async {
 
     if (selectedMachine == null ||
@@ -61,7 +59,6 @@ class _RestockMachinePageState extends State<RestockMachinePage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Please fill all fields")),
       );
-
       return;
     }
 
@@ -95,6 +92,7 @@ class _RestockMachinePageState extends State<RestockMachinePage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
 
+            /// MACHINE DROPDOWN
             const Text(
               "Select Machine",
               style: TextStyle(fontSize: 16),
@@ -108,7 +106,11 @@ class _RestockMachinePageState extends State<RestockMachinePage> {
 
                 return DropdownMenuItem<int>(
                   value: machine['machine_id'],
-                  child: Text(machine['location']),
+
+                  /// ✅ SHOW MACHINE NUMBER
+                  child: Text(
+                    "Machine ${machine['machine_id']} - ${machine['location']}",
+                  ),
                 );
 
               }).toList(),
@@ -122,6 +124,7 @@ class _RestockMachinePageState extends State<RestockMachinePage> {
 
             const SizedBox(height: 25),
 
+            /// PRODUCT DROPDOWN
             const Text(
               "Select Product",
               style: TextStyle(fontSize: 16),
@@ -135,6 +138,8 @@ class _RestockMachinePageState extends State<RestockMachinePage> {
 
                 return DropdownMenuItem<int>(
                   value: product['product_id'],
+
+                  /// (assuming your column is product_name)
                   child: Text(product['product_name']),
                 );
 
@@ -149,6 +154,7 @@ class _RestockMachinePageState extends State<RestockMachinePage> {
 
             const SizedBox(height: 25),
 
+            /// QUANTITY INPUT
             TextField(
               controller: quantityController,
               keyboardType: TextInputType.number,
@@ -160,6 +166,7 @@ class _RestockMachinePageState extends State<RestockMachinePage> {
 
             const SizedBox(height: 30),
 
+            /// BUTTON
             Center(
               child: ElevatedButton(
                 onPressed: restockMachine,
