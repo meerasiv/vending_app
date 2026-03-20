@@ -1,156 +1,131 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-class CustomerProductPage extends StatefulWidget {
-  final int machineId;
-
-  const CustomerProductPage({super.key, required this.machineId});
+class AddProductPage extends StatefulWidget {
+  AddProductPage({super.key}); // ❗ NOT const
 
   @override
-  State<CustomerProductPage> createState() => _CustomerProductPageState();
+  State<AddProductPage> createState() => _AddProductPageState();
 }
 
-class _CustomerProductPageState extends State<CustomerProductPage> {
+class _AddProductPageState extends State<AddProductPage> {
+
   final supabase = Supabase.instance.client;
-  List products = [];
 
-  @override
-  void initState() {
-    super.initState();
-    loadProducts();
-  }
+  final TextEditingController nameController = TextEditingController();
+  final TextEditingController priceController = TextEditingController();
 
-  Future loadProducts() async {
-    final data = await supabase
-        .from('machine_inventory')
-        .select('quantity_available,product(*)')
-        .eq('machine_id', widget.machineId);
+  String? selectedCategory;
 
-    setState(() {
-      products = data;
-    });
-  }
+  final List<String> categories = [
+    'Snacks',
+    'Drinks',
+    'Chocolates',
+    'Biscuits'
+  ];
 
-  Future buyProduct(int productId, double price) async {
-    await supabase.from('machine_transaction').insert({
-      'machine_id': widget.machineId,
-      'product_id': productId,
-      'amount_paid': price,
-      'payment_method': 'UPI'
-    });
+  bool isLoading = false;
 
-    final data = await supabase
-        .from('machine_inventory')
-        .select()
-        .eq('machine_id', widget.machineId)
-        .eq('product_id', productId)
-        .single();
+  Future<void> addProduct() async {
+    final name = nameController.text.trim();
+    final price = double.tryParse(priceController.text.trim());
 
-    int currentQty = data['quantity_available'];
+    if (name.isEmpty || price == null || selectedCategory == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Fill all fields correctly")),
+      );
+      return;
+    }
 
-    await supabase
-        .from('machine_inventory')
-        .update({'quantity_available': currentQty - 1})
-        .eq('machine_id', widget.machineId)
-        .eq('product_id', productId);
+    setState(() => isLoading = true);
 
-    loadProducts();
+    try {
+      await supabase.from('product').insert({
+        'name': name,
+        'category': selectedCategory,
+        'price': price,
+      });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Purchase Successful")),
-    );
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Product added")),
+      );
+
+      nameController.clear();
+      priceController.clear();
+      setState(() => selectedCategory = null);
+
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error: $e")),
+      );
+    }
+
+    setState(() => isLoading = false);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Select Product"),
-        centerTitle: true,
-      ),
-      body: products.isEmpty
-          ? const Center(child: CircularProgressIndicator())
-          : Padding(
-              padding: const EdgeInsets.all(8), // tighter padding
-              child: GridView.builder(
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 8,
-                  mainAxisSpacing: 8,
-                  childAspectRatio: 0.8, // flatter and shorter
-                ),
-                itemCount: products.length,
-                itemBuilder: (context, index) {
-                  final item = products[index];
-                  final product = item['product'];
-                  final stock = item['quantity_available'];
+      appBar: AppBar(title: const Text("Add Product")),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
 
-                  return Card(
-                    elevation: 3,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(10), // reduced padding
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          const Icon(
-                            Icons.local_drink,
-                            size: 30,
-                            color: Colors.blue,
-                          ),
-                          Text(
-                            product['product_name'],
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 2), // tighter spacing
-                          Text(
-                            "₹${product['price']}",
-                            style: const TextStyle(
-                              fontSize: 15,
-                              color: Colors.green,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            "Stock: $stock",
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: stock > 0 ? Colors.grey : Colors.red,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          SizedBox(
-                            width: double.infinity,
-                            height: 32, // smaller button
-                            child: ElevatedButton(
-                              onPressed: stock > 0
-                                  ? () {
-                                      buyProduct(
-                                        product['product_id'],
-                                        product['price'].toDouble(),
-                                      );
-                                    }
-                                  : null,
-                              child: const Text(
-                                "Buy",
-                                style: TextStyle(fontSize: 14),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
+        child: Column(
+          children: [
+
+            TextField(
+              controller: nameController,
+              decoration: const InputDecoration(
+                labelText: "Product Name",
+                border: OutlineInputBorder(),
               ),
             ),
+
+            const SizedBox(height: 16),
+
+            DropdownButtonFormField<String>(
+              value: selectedCategory,
+              items: categories.map((cat) {
+                return DropdownMenuItem(
+                  value: cat,
+                  child: Text(cat),
+                );
+              }).toList(),
+              onChanged: (value) {
+                setState(() => selectedCategory = value);
+              },
+              decoration: const InputDecoration(
+                labelText: "Category",
+                border: OutlineInputBorder(),
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            TextField(
+              controller: priceController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: "Price",
+                border: OutlineInputBorder(),
+              ),
+            ),
+
+            const SizedBox(height: 24),
+
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton(
+                onPressed: isLoading ? null : addProduct,
+                child: isLoading
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Text("Add Product"),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
