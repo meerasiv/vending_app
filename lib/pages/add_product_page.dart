@@ -2,14 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AddProductPage extends StatefulWidget {
-  AddProductPage({super.key}); // ❗ NOT const
+  const AddProductPage({super.key});
 
   @override
   State<AddProductPage> createState() => _AddProductPageState();
 }
 
 class _AddProductPageState extends State<AddProductPage> {
-
   final supabase = Supabase.instance.client;
 
   final TextEditingController nameController = TextEditingController();
@@ -26,6 +25,7 @@ class _AddProductPageState extends State<AddProductPage> {
 
   bool isLoading = false;
 
+  // ================= ADD PRODUCT =================
   Future<void> addProduct() async {
     final name = nameController.text.trim();
     final price = double.tryParse(priceController.text.trim());
@@ -41,20 +41,22 @@ class _AddProductPageState extends State<AddProductPage> {
 
     try {
       await supabase.from('product').insert({
-        'name': name,
+        'product_name': name, // ✅ FIXED COLUMN
         'category': selectedCategory,
         'price': price,
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Product added")),
+        const SnackBar(content: Text("Product added successfully")),
       );
 
+      // Clear fields
       nameController.clear();
       priceController.clear();
       setState(() => selectedCategory = null);
 
     } catch (e) {
+      print("Add Product Error: $e"); // 🔍 debug
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Error: $e")),
       );
@@ -63,16 +65,20 @@ class _AddProductPageState extends State<AddProductPage> {
     setState(() => isLoading = false);
   }
 
+  // ================= UI =================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Add Product")),
+      appBar: AppBar(
+        title: const Text("Add Product"),
+        backgroundColor: Colors.blue,
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16),
-
         child: Column(
           children: [
 
+            // Product Name
             TextField(
               controller: nameController,
               decoration: const InputDecoration(
@@ -83,6 +89,7 @@ class _AddProductPageState extends State<AddProductPage> {
 
             const SizedBox(height: 16),
 
+            // Category Dropdown
             DropdownButtonFormField<String>(
               value: selectedCategory,
               items: categories.map((cat) {
@@ -102,6 +109,7 @@ class _AddProductPageState extends State<AddProductPage> {
 
             const SizedBox(height: 16),
 
+            // Price
             TextField(
               controller: priceController,
               keyboardType: TextInputType.number,
@@ -113,19 +121,33 @@ class _AddProductPageState extends State<AddProductPage> {
 
             const SizedBox(height: 24),
 
+            // Button
             SizedBox(
               width: double.infinity,
               height: 50,
               child: ElevatedButton(
                 onPressed: isLoading ? null : addProduct,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue,
+                ),
                 child: isLoading
                     ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text("Add Product"),
+                    : const Text(
+                        "Add Product",
+                        style: TextStyle(color: Colors.white),
+                      ),
               ),
             ),
           ],
         ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    nameController.dispose();
+    priceController.dispose();
+    super.dispose();
   }
 }
