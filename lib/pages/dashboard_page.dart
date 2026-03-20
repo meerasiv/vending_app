@@ -1,259 +1,226 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-class DashboardPage extends StatefulWidget {
+import 'add_machine_page.dart';
+import 'add_product_page.dart';
+import 'inventory_page.dart';
+import 'sales_report_page.dart';
+import 'login_page.dart';
+import 'admin_alert_page.dart';
+
+class DashboardPage extends StatelessWidget {
   const DashboardPage({super.key});
 
-  @override
-  State<DashboardPage> createState() => _DashboardPageState();
-}
-
-class _DashboardPageState extends State<DashboardPage> {
-  final supabase = Supabase.instance.client;
-
-  // ---------- Add Product ----------
-  final productNameController = TextEditingController();
-  final productPriceController = TextEditingController();
-  final List<String> productCategories = [
-    'Beverages',
-    'Snacks',
-    'Dairy',
-    'Bakery',
-    'Personal Care',
-    'Stationery',
-    'Others'
-  ];
-  String selectedCategory = 'Beverages';
-  bool isAddingProduct = false;
-
-  Future<void> addProduct() async {
-    if (productNameController.text.isEmpty || productPriceController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Please fill all fields ❗")));
-      return;
+  Future<void> logout(BuildContext context) async {
+    await Supabase.instance.client.auth.signOut();
+    if (context.mounted) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const LoginPage()),
+        (route) => false,
+      );
     }
-
-    setState(() => isAddingProduct = true);
-
-    try {
-      await supabase.from('PRODUCT').insert({
-        'product_name': productNameController.text.trim(),
-        'category': selectedCategory,
-        'price': double.parse(productPriceController.text.trim()),
-        'supplier_id': 1, // static for now
-      });
-
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text("Product Added ✅")));
-
-      productNameController.clear();
-      productPriceController.clear();
-      setState(() => selectedCategory = productCategories[0]);
-      loadInventory();
-    } catch (e) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text("Error: $e")));
-    } finally {
-      setState(() => isAddingProduct = false);
-    }
-  }
-
-  // ---------- Add Machine ----------
-  final machineLocationController = TextEditingController();
-  bool isAddingMachine = false;
-
-  Future<void> addMachine() async {
-    if (machineLocationController.text.isEmpty) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text("Enter location ❗")));
-      return;
-    }
-
-    setState(() => isAddingMachine = true);
-
-    try {
-      await supabase.from('VENDING_MACHINE').insert({
-        'location': machineLocationController.text.trim(),
-      });
-
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text("Machine Added ✅")));
-      machineLocationController.clear();
-      loadInventory();
-    } catch (e) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text("Error: $e")));
-    } finally {
-      setState(() => isAddingMachine = false);
-    }
-  }
-
-  // ---------- Inventory ----------
-  List inventoryItems = [];
-  bool isLoadingInventory = false;
-
-  Future<void> loadInventory() async {
-    setState(() => isLoadingInventory = true);
-
-    try {
-      final data = await supabase.from('machine_inventory').select(
-          'machine_id,quantity_available,product(product_id,product_name,price)');
-      setState(() => inventoryItems = data);
-    } catch (e) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text("Error: $e")));
-    } finally {
-      setState(() => isLoadingInventory = false);
-    }
-  }
-
-  // ---------- Sales Report ----------
-  List salesItems = [];
-  bool isLoadingSales = false;
-
-  Future<void> loadSalesReport() async {
-    setState(() => isLoadingSales = true);
-
-    try {
-      final data = await supabase.from('machine_transaction').select(
-          'transaction_id,machine_id,product_id,amount_paid,payment_method,created_at');
-      setState(() => salesItems = data);
-    } catch (e) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text("Error: $e")));
-    } finally {
-      setState(() => isLoadingSales = false);
-    }
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    loadInventory();
-    loadSalesReport();
-  }
-
-  InputDecoration fieldStyle(String label, IconData icon) {
-    return InputDecoration(
-      labelText: label,
-      prefixIcon: Icon(icon),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 4,
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text("Dashboard"),
-          centerTitle: true,
-          bottom: const TabBar(
-            tabs: [
-              Tab(text: "Add Product"),
-              Tab(text: "Add Machine"),
-              Tab(text: "Inventory"),
-              Tab(text: "Sales"),
+    return Scaffold(
+      backgroundColor: const Color(0xFFF4F7F9), // Light Grey-Blue
+      appBar: AppBar(
+        title: const Text(
+          "MANAGEMENT SYSTEM",
+          style: TextStyle(letterSpacing: 1.2, fontWeight: FontWeight.bold, fontSize: 18),
+        ),
+        centerTitle: true,
+        backgroundColor: const Color(0xFF1A237E), // Deep Navy
+        elevation: 0,
+        actions: [
+          TextButton.icon(
+            onPressed: () => logout(context),
+            icon: const Icon(Icons.power_settings_new, color: Colors.white, size: 18),
+            label: const Text("LOGOUT", style: TextStyle(color: Colors.white)),
+          )
+        ],
+      ),
+      body: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 30),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              "Quick Actions",
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: Color(0xFF1A237E)),
+            ),
+            const SizedBox(height: 20),
+            
+            /// ROW 1
+            Expanded(
+              child: Row(
+                children: [
+                  Expanded(
+                    child: actionCard(
+                      context,
+                      "MACHINES",
+                      "Register new unit",
+                      const Color(0xFF2196F3), // Blue
+                      const AddMachinePage(),
+                    ),
+                  ),
+                  const SizedBox(width: 20),
+                  Expanded(
+                    child: actionCard(
+                      context,
+                      "PRODUCTS",
+                      "Update catalog",
+                     const Color(0xFF2196F3),
+                       AddProductPage(),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            /// ROW 2
+            Expanded(
+              child: Row(
+                children: [
+                  Expanded(
+                    child: actionCard(
+                      context,
+                      "INVENTORY",
+                      "Stock levels",
+                      const Color(0xFF2196F3), // Blue
+                      const InventoryPage(),
+                    ),
+                  ),
+                  const SizedBox(width: 20),
+                  Expanded(
+                    child: actionCard(
+                      context,
+                      "REPORTS",
+                      "Sales analytics",
+                     const Color(0xFF2196F3), // Blue
+                      const SalesReportPage(),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 30),
+
+            /// TECHNICAL ALERT BUTTON
+            InkWell(
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminAlertPage())),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  border: Border.all(color: Colors.red.shade700, width: 2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text("⚠️ ", style: TextStyle(fontSize: 20)), // Emoji fallback
+                    Text(
+                      "DISPATCH TECHNICIAN",
+                      style: TextStyle(
+                        color: Colors.red.shade700,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.1,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget actionCard(
+    BuildContext context,
+    String title,
+    String subtitle,
+    Color accentColor,
+    Widget page,
+  ) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(15),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(15),
+        child: InkWell(
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => page)),
+          child: Stack(
+            children: [
+              // Colored Accent Bar on the side
+              Positioned(
+                left: 0,
+                top: 0,
+                bottom: 0,
+                width: 6,
+                child: Container(color: accentColor),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                        color: accentColor,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey.shade600,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 15),
+                    // Visual "Go" Indicator (Simple container)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: accentColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(5),
+                      ),
+                      child: Text(
+                        "OPEN →",
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: accentColor,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
-        ),
-        body: TabBarView(
-          children: [
-
-            // ---------- Add Product Tab ----------
-            SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  TextField(
-                    controller: productNameController,
-                    decoration: fieldStyle("Product Name", Icons.drive_file_rename_outline),
-                  ),
-                  const SizedBox(height: 16),
-                  DropdownButtonFormField<String>(
-                    value: selectedCategory,
-                    decoration: fieldStyle("Category", Icons.category),
-                    items: productCategories
-                        .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-                        .toList(),
-                    onChanged: (val) => setState(() => selectedCategory = val!),
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: productPriceController,
-                    keyboardType: TextInputType.number,
-                    decoration: fieldStyle("Price (₹)", Icons.attach_money),
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: isAddingProduct ? null : addProduct,
-                    child: isAddingProduct
-                        ? const CircularProgressIndicator(color: Colors.white)
-                        : const Text("Add Product"),
-                  ),
-                ],
-              ),
-            ),
-
-            // ---------- Add Machine Tab ----------
-            SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  TextField(
-                    controller: machineLocationController,
-                    decoration: fieldStyle("Machine Location", Icons.location_on),
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: isAddingMachine ? null : addMachine,
-                    child: isAddingMachine
-                        ? const CircularProgressIndicator(color: Colors.white)
-                        : const Text("Add Machine"),
-                  ),
-                ],
-              ),
-            ),
-
-            // ---------- Inventory Tab ----------
-            isLoadingInventory
-                ? const Center(child: CircularProgressIndicator())
-                : ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: inventoryItems.length,
-                    itemBuilder: (context, index) {
-                      final item = inventoryItems[index];
-                      final product = item['product'];
-                      return Card(
-                        child: ListTile(
-                          title: Text(product['product_name']),
-                          subtitle: Text(
-                              "Machine: ${item['machine_id']} | Stock: ${item['quantity_available']} | Price: ₹${product['price']}"),
-                        ),
-                      );
-                    },
-                  ),
-
-            // ---------- Sales Tab ----------
-            isLoadingSales
-                ? const Center(child: CircularProgressIndicator())
-                : ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: salesItems.length,
-                    itemBuilder: (context, index) {
-                      final sale = salesItems[index];
-                      return Card(
-                        child: ListTile(
-                          title: Text(
-                              "Machine: ${sale['machine_id']} | Product: ${sale['product_id']}"),
-                          subtitle: Text(
-                              "Paid: ₹${sale['amount_paid']} | Method: ${sale['payment_method']} | ${sale['created_at']}"),
-                        ),
-                      );
-                    },
-                  ),
-          ],
         ),
       ),
     );
